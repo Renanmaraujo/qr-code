@@ -1,3 +1,4 @@
+
 const express = require('express');
 const puppeteer = require('puppeteer');
 
@@ -8,29 +9,32 @@ app.get('/get-qrcode', async (req, res) => {
   try {
     const browser = await puppeteer.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: true,
-      executablePath: process.env.NODE_ENV === 'production'
-        ? '/usr/bin/google-chrome'
-        : undefined
+      headless: 'new',
     });
 
     const page = await browser.newPage();
     await page.goto('https://evo.valparaiso.pro/instance/connect/REnan', {
-      waitUntil: 'networkidle2'
+      waitUntil: 'networkidle2',
+      timeout: 60000 // aumenta tempo limite
     });
 
-    await page.waitForSelector('canvas');
+    await page.waitForSelector('canvas', { timeout: 20000 });
 
     const qrCodeBase64 = await page.evaluate(() => {
       const canvas = document.querySelector('canvas');
-      return canvas.toDataURL('image/png');
+      return canvas ? canvas.toDataURL('image/png') : null;
     });
 
     await browser.close();
 
+    if (!qrCodeBase64) {
+      return res.status(500).send('Canvas não encontrado na página.');
+    }
+
     res.json({ base64: qrCodeBase64 });
-  } catch (err) {
-    console.error('Erro ao gerar QR Code:', err);
+
+  } catch (error) {
+    console.error('Erro ao gerar QR Code:', error);
     res.status(500).send('Erro ao gerar QR Code.');
   }
 });
@@ -40,5 +44,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
