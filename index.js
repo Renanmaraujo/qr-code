@@ -1,15 +1,18 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const chromium = require('chrome-aws-lambda');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/get-qrcode', async (req, res) => {
+  let browser = null;
+
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: puppeteer.executablePath(), // usa o chromium embutido
+    browser = await chromium.puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
@@ -23,12 +26,13 @@ app.get('/get-qrcode', async (req, res) => {
       return canvas.toDataURL('image/png');
     });
 
-    await browser.close();
     res.json({ base64: qrCodeBase64 });
 
   } catch (error) {
-    console.error('Erro ao gerar QR Code:', error);
+    console.error('Erro ao gerar QR Code:', error.message);
     res.send('Erro ao gerar QR Code.');
+  } finally {
+    if (browser) await browser.close();
   }
 });
 
